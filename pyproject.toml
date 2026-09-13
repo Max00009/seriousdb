@@ -8,3 +8,5 @@ dependencies = [
     "black>=26.5.1",
     "fastapi[standard]>=0.141.1",
 ]
+[tool.black]
+target-version=['py311']
