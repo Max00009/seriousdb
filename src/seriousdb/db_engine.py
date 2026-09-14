@@ -60,9 +60,9 @@ class DbEngine:
                         e,
                         backup,
                     )
-                    os.replace(
-                        self.db_file, backup
-                    )  # atomically replace the backup file with corrupted DB_FILE
+                    os.replace(self.db_file, backup)  # atomically replace the backup file with corrupted DB_FILE
+                    self._fsync_dir(self.db_file) #force fsync of parent directory
+
                     with open(self.db_file, "w") as f:
                         json.dump(DEFAULT_DB, f)
                     self.state = dict(DEFAULT_DB)
@@ -141,6 +141,7 @@ class DbEngine:
             )  # force the OS to write it to physical disk.this is to make the operating system to actually write data from memory buffers to the physical disk, instead of leaving it sitting in a cache
 
         os.replace(tmp_file, self.db_file)  # atomic replace.safe
+        self._fsync_dir(self.db_file) #force fsync of parent directory
 
         open(self.wal_file, "w").close()  # trunicate the WAL to empty
         self.uncompacted_writes = 0  # set the uncompacted_write counter to zero
@@ -149,3 +150,12 @@ class DbEngine:
     def compact(self):
         with self.lock:
             self._compact_locked()
+
+    def _fsync_dir(self,path):
+        """this function will fsync dirctory containing `path` """
+        dir_path=os.path.dirname(os.path.abspath(path)) or "."
+        fd=os.open(dir_path,os.O_RDONLY)
+        try:
+            os.fsync(fd)
+        finally:
+            os.close(fd) #close fd even if fsync raises error
