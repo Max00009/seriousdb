@@ -1,7 +1,5 @@
 from contextlib import asynccontextmanager
-
 from fastapi import FastAPI, HTTPException
-
 from .db_engine import DbEngine
 
 # First we initiate our database
