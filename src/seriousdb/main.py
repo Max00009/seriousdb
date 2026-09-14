@@ -2,10 +2,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 
-from .db_engine import Db_Engine
+from .db_engine import DbEngine
 
 # First we initiate our database
-db = Db_Engine()
+db = DbEngine()
 
 
 # now we will create a bridge between the FastAPI server and our Db_Engine
