@@ -70,15 +70,21 @@ class DbEngine:
             # step3: Replay the WAL file if it's present and has contents
             if os.path.isfile(self.wal_file):
                 with open(self.wal_file, "r") as f:
-                    for line in f:
-                        if line.strip():
-                            entry = json.loads(
-                                line
-                            )  # loads is being used instead of load cause we are loading string(each line in WAL file) not a file object
-                            self.state.update(entry)
+                    lines=f.readlines()
+                for i,line in enumerate(lines):
+                    #skip blank lines
+                    if not line.strip():
+                        continue
 
-                # call compact to merge with db_file
-                self._compact_locked()
+                    #handle corrupt/torn WAL line
+                    try:
+                        entry=json.loads(line)
+                    except json.JSONDecodeError as e:
+                        logger.warning("Truncated/corrupt WAL entry at line %d (%s); discarding it and %d entries after it", i, e, len(lines) - i - 1)
+                        break #we stop at the torn line and discard everything after it
+                    self.state.update(entry)
+                self._compact_locked() # call compact to merge with db_file
+
 
     def put(self, key: str, value: str):
         '''updates memory.and also appends to the wal_file. and checks if compaction is needed.'''
