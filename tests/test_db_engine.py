@@ -4,7 +4,7 @@ import json
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
-
+from unittest.mock import patch
 from seriousdb.db_engine import DbEngine
 
 
@@ -137,6 +137,18 @@ class DbEngineWalAndCompactionTests(unittest.TestCase):
 
         self.assertEqual(db2.get("before"), "1")
         self.assertIsNone(db2.get("after"))
+
+    def test_compact_fsyncs_parent_directory(self):
+        """_compact_locked should fsync db_file's parent directory after the
+        atomic rename, so the rename itself is durable and not just atomic."""
+        db = DbEngine(db_file=self.db_file, wal_file=self.wal_file, compact_threshold=50)
+        db.boot()
+
+        with patch.object(DbEngine, "_fsync_dir") as mock_fsync_dir:
+            db.put("a", "1")
+            db.compact()
+
+        mock_fsync_dir.assert_called_with(db.db_file)
 
 
 class DbEngineValidationTests(unittest.TestCase):
