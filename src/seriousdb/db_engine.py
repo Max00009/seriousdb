@@ -18,7 +18,7 @@ class Db_Engine:
     def __init__(self):
         self.state = {}  # we create the db_state
         self.uncompacted_writes = 0  # number of entries that is loaded to memory and appended to WAL but not compacted yet
-        self.lock = Lock()  # without RLock, when one thread try to acquire a lock that it already holds it will cause deadlock.(e.g put() accquires a lock but later calls self.compact() which also acquires the same lock)
+        self.lock = Lock()  
 
     def boot(self):
         """first loads the DB_FILE.Then checks if any WAL_FILE with uncompacted changes is present.
