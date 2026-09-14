@@ -12,6 +12,7 @@ from tempfile import TemporaryDirectory
 from fastapi.testclient import TestClient
 
 from seriousdb import main
+from seriousdb.db_engine import DbEngine
 
 
 class DocumentedApiTests(unittest.TestCase):
@@ -19,9 +20,12 @@ class DocumentedApiTests(unittest.TestCase):
         tmpdir = TemporaryDirectory()
         self.addCleanup(tmpdir.cleanup)
 
-        original_db_file = main.DB_FILE
-        main.DB_FILE = str(Path(tmpdir.name) / ".sdb")
-        self.addCleanup(setattr, main, "DB_FILE", original_db_file)
+        self.original_db = main.db
+        main.db=DbEngine(
+            db_file=str(Path(tmpdir.name) / ".sdb"),
+            wal_file=str(Path(tmpdir.name) / "changes.log"),
+        )
+        self.addCleanup(setattr, main, "db", self.original_db)
 
         self.client = TestClient(main.app)
         self.client.__enter__()
@@ -55,10 +59,13 @@ class DocumentedApiTests(unittest.TestCase):
         self.assertEqual(response.status_code, 404)
 
     def test_put_persists_to_db_file_on_disk(self):
-        # docs/persistence.md: each PUT writes the complete dictionary back to disk.
+        # docs/persistence.md: a PUT is durable and eventually reflected in the DB file.
+        # This engine batches writes via a WAL and only rewrites DB_FILE on compaction,
+        # so we force a compaction here to check the on-disk state directly.
         self.client.put("/db", params={"key": "name", "value": "Alice"})
+        main.db.compact()
 
-        on_disk = json.loads(Path(main.DB_FILE).read_text())
+        on_disk = json.loads(Path(main.db.db_file).read_text())
         self.assertEqual(on_disk["name"], "Alice")
 
 
